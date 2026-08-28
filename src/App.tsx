@@ -145,6 +145,8 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
+      // Play a smooth ring bell welcome sound
+      playSound('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
@@ -200,6 +202,8 @@ export default function App() {
         // Initial save if first time
         saveProfile(user.uid, { ...profileData, followingList: [], friendsList: [], userStats }, settings);
       }
+    }).catch(err => {
+      console.error("Error loading profile:", err);
     });
 
     return () => {
@@ -830,6 +834,10 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
         <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter animate-in zoom-in-50 duration-700">
           TimeGiG
         </h1>
+        {/* Loading Bar */}
+        <div className="absolute bottom-20 left-8 right-8 h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-white animate-progress" />
+        </div>
       </div>
     );
   }
