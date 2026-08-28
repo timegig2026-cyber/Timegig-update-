@@ -1,0 +1,321 @@
+import { ChatItem, StatusItem, CallItem, CommunityItem, MessageItem } from './types';
+
+export const initialChats: ChatItem[] = [
+  {
+    id: '1',
+    name: 'Sarah Connor',
+    role: 'Lead Product Designer',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Hey! Are we still meeting for coffee today? ☕',
+    time: '10:42 AM',
+    unreadCount: 2,
+    isOnline: true,
+    isPinned: true,
+  },
+  {
+    id: '2',
+    name: 'Tech Innovators Group',
+    role: 'Engineering Team',
+    avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Alex: Just published the new design specs! Check them out.',
+    time: '09:15 AM',
+    unreadCount: 5,
+    isPinned: true,
+  },
+  {
+    id: '3',
+    name: 'David Kim',
+    role: 'Senior React Dev',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Thanks for the quick review, looks fantastic!',
+    time: 'Yesterday',
+    unreadCount: 0,
+    isOnline: false,
+  },
+  {
+    id: '4',
+    name: 'Family Weekend',
+    role: 'Weekend Planner',
+    avatar: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Mom: Don’t forget to bring the dessert on Sunday 🍰',
+    time: 'Yesterday',
+    unreadCount: 0,
+  },
+  {
+    id: '5',
+    name: 'Elena Rostova',
+    role: 'UX Researcher',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Voice message (0:45)',
+    time: 'Wednesday',
+    unreadCount: 0,
+  },
+  {
+    id: '6',
+    name: 'Marcus Brody',
+    role: 'Project Manager',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Sent an attachment: project-brief.pdf',
+    time: 'Tuesday',
+    unreadCount: 0,
+  },
+  {
+    id: '7',
+    name: 'Designers Hub',
+    role: 'Community',
+    avatar: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Sophie: Loving the new minimalist white theme concept.',
+    time: 'Monday',
+    unreadCount: 0,
+  },
+  {
+    id: '8',
+    name: 'Old Project Team',
+    role: 'Archived Group',
+    avatar: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Great work everyone, closing this group now.',
+    time: 'Last Month',
+    unreadCount: 0,
+    isArchived: true,
+  },
+  {
+    id: '9',
+    name: 'Marketing Updates',
+    role: 'Newsletter',
+    avatar: 'https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Q2 Marketing results are in! See how we performed against our goals.',
+    time: 'May 14',
+    unreadCount: 0,
+    isArchived: true,
+  },
+  {
+    id: '10',
+    name: 'Jason Smith',
+    role: 'Former Client',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    lastMessage: 'Invoice paid. Thanks for the quick turnaround.',
+    time: 'April 02',
+    unreadCount: 0,
+    isArchived: true,
+  }
+];
+
+export const sampleChatMessages: Record<string, MessageItem[]> = {
+  '1': [
+    { id: 'm1', sender: 'other', text: 'Good morning! Hope you had a nice weekend.', time: '10:30 AM', status: 'read' },
+    { id: 'm2', sender: 'me', text: 'Morning Sarah! Yes, it was super relaxing. How about yours?', time: '10:35 AM', status: 'read' },
+    { id: 'm3', sender: 'other', text: 'Hey! Are we still meeting for coffee today? ☕', time: '10:42 AM', status: 'read' },
+  ],
+  '2': [
+    { id: 'm1', sender: 'other', text: 'Welcome everyone to the sprint review channel.', time: '08:50 AM', status: 'read' },
+    { id: 'm2', sender: 'other', text: 'Alex: Just published the new design specs! Check them out.', time: '09:15 AM', status: 'read' },
+  ],
+  '3': [
+    { id: 'm1', sender: 'me', text: 'Sent over the revised document for your project.', time: 'Yesterday', status: 'read' },
+    { id: 'm2', sender: 'other', text: 'Thanks for the quick review, looks fantastic!', time: 'Yesterday', status: 'read' },
+  ]
+};
+
+export const initialStatuses: StatusItem[] = [
+  {
+    id: 'my-status',
+    name: 'My Status',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    time: 'Tap to add status update',
+    isViewed: false,
+    isMine: true,
+  },
+  {
+    id: 's1',
+    name: 'Sarah Connor',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    time: '24 minutes ago',
+    isViewed: false,
+    mediaText: 'Morning hike in the mountains! 🏔️✨',
+  },
+  {
+    id: 's2',
+    name: 'David Kim',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    time: '1 hour ago',
+    isViewed: false,
+    mediaText: 'Coding session with fresh pour-over coffee 💻☕',
+  },
+  {
+    id: 's3',
+    name: 'Elena Rostova',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    time: '5 hours ago',
+    isViewed: true,
+    mediaText: 'Art gallery exhibition opening tonight 🎨',
+  },
+  {
+    id: 's4',
+    name: 'Marcus Brody',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    time: 'Today at 6:15 AM',
+    isViewed: true,
+    mediaText: 'Sunrise run complete! 5km done 🏃‍♂️',
+  }
+];
+
+export const initialCalls: CallItem[] = [
+  {
+    id: 'c1',
+    name: 'Sarah Connor',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    type: 'incoming',
+    isVideo: true,
+    time: 'Today, 10:15 AM',
+    duration: '14 min 22 sec',
+  },
+  {
+    id: 'c2',
+    name: 'David Kim',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    type: 'missed',
+    isVideo: false,
+    time: 'Yesterday, 8:40 PM',
+  },
+  {
+    id: 'c3',
+    name: 'Elena Rostova',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    type: 'outgoing',
+    isVideo: false,
+    time: 'August 25, 4:12 PM',
+    duration: '3 min 40 sec',
+  },
+  {
+    id: 'c4',
+    name: 'Tech Innovators Group',
+    avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+    type: 'incoming',
+    isVideo: true,
+    time: 'August 24, 2:00 PM',
+    duration: '45 min',
+  }
+];
+
+export const initialCommunities: CommunityItem[] = [
+  {
+    id: 'com1',
+    name: 'Global Tech & Developers',
+    description: 'A community for modern web developers, engineers, and tech creators.',
+    avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+    subgroupsCount: 4,
+    membersCount: 1240,
+    announcement: 'Next community workshop is scheduled for Friday at 3 PM UTC!',
+  },
+  {
+    id: 'com2',
+    name: 'Design & Creative Studio',
+    description: 'Typography, UI/UX, product design, and creative direction discussions.',
+    avatar: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=150&auto=format&fit=crop&q=80',
+    subgroupsCount: 3,
+    membersCount: 860,
+    announcement: 'Minimalist white interface case study has been shared.',
+  }
+];
+
+import { MarketItem } from './types';
+
+export const initialMarketItems: MarketItem[] = [
+  {
+    id: 'm1',
+    title: 'Enterprise SaaS UI Kit & Design System',
+    category: 'Design Assets',
+    description: 'A comprehensive, scalable design system and UI kit built for modern enterprise SaaS applications. Includes 200+ components and dark/light modes.',
+    price: '$49',
+    province: 'California',
+    location: 'San Francisco, CA',
+    contactInfo: 'support@pixelcraft.io',
+    images: ['https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&auto=format&fit=crop&q=80'],
+    seller: 'PixelCraft Studio',
+    rating: '4.9',
+  },
+  {
+    id: 'm2',
+    title: 'Full Stack React & Node Boilerplate',
+    category: 'Software Templates',
+    description: 'Production-ready full stack boilerplate with authentication, database ORM, API routes, and Tailwind CSS configured.',
+    price: '$89',
+    province: 'Ontario',
+    location: 'Toronto, ON',
+    contactInfo: 'hello@techflow.dev',
+    images: ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=80'],
+    seller: 'TechFlow Labs',
+    rating: '5.0',
+  },
+  {
+    id: 'm3',
+    title: 'High-Conversion Landing Page Templates',
+    category: 'Web Development',
+    description: 'Set of 10 modern landing page templates optimized for high conversion rates, fast load times, and responsive layouts.',
+    price: '$29',
+    province: 'New York',
+    location: 'New York, NY',
+    contactInfo: 'sales@webifypro.com',
+    images: ['https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80'],
+    seller: 'Webify Pro',
+    rating: '4.8',
+  },
+];
+
+export const initialGigs: MarketItem[] = [
+  {
+    id: 'g1',
+    title: 'Senior Frontend React Engineer',
+    category: 'Full-time',
+    description: 'We are looking for a Senior Frontend Engineer to lead our core product team.',
+    price: '$120/hr',
+    province: 'Remote',
+    location: 'Remote (US)',
+    contactInfo: 'jobs@techflow.io',
+    images: ['https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&auto=format&fit=crop&q=80'],
+    seller: 'TechFlow Labs',
+    rating: '5.0',
+  },
+  {
+    id: 'g2',
+    title: 'UI/UX Design Architect',
+    category: 'Contract',
+    description: 'Seeking a design architect to build out our next-gen design system.',
+    price: '$110/hr',
+    province: 'California',
+    location: 'San Francisco, CA',
+    contactInfo: 'design@pixelcraft.studio',
+    images: ['https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&auto=format&fit=crop&q=80'],
+    seller: 'PixelCraft Studio',
+    rating: '4.9',
+  },
+];
+
+export const initialSeekers: MarketItem[] = [
+  {
+    id: 's1',
+    title: 'Julianna Smith - Product Designer',
+    category: 'Design',
+    description: 'Experienced product designer with a focus on accessibility and design systems.',
+    price: '$85/hr',
+    province: 'Remote',
+    location: 'Remote',
+    contactInfo: 'julianna@example.com',
+    images: ['https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'],
+    seller: 'Julianna Smith',
+    rating: '4.9',
+  },
+  {
+    id: 's2',
+    title: 'Marcus Brody - Full Stack Dev',
+    category: 'Development',
+    description: 'TypeScript wizard looking for interesting React/Node.js projects.',
+    price: '$95/hr',
+    province: 'Remote',
+    location: 'Remote',
+    contactInfo: 'marcus@example.com',
+    images: ['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'],
+    seller: 'Marcus Brody',
+    rating: '5.0',
+  },
+];

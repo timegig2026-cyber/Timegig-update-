@@ -1,0 +1,6 @@
+{
+  "name": "Messaging App",
+  "description": "A clean WhatsApp-style application with a white bottom navigation bar, 5 feature icons, and a pure white background wallpaper without a top menu bar.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
