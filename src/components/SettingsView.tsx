@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Bell, MessageSquare, Shield, Lock, Eye, BellRing, Volume2, VolumeX, Check } from 'lucide-react';
+import { ArrowLeft, Bell, MessageSquare, Shield, Lock, Eye, BellRing, Volume2, Globe, MapPin, Coins, Check } from 'lucide-react';
+import { Settings } from '../types';
+import { LANGUAGES, COUNTRIES, getTranslation } from '../lib/i18n';
 
 interface SettingsViewProps {
   onClose: () => void;
-  settings: {
-    isSoundEnabled: boolean;
-    notificationSound: string;
-    chatSound: string;
-    isPrivate: boolean;
-    showOnlineStatus: boolean;
-    showLastSeen: boolean;
-  };
-  onUpdateSettings: (updates: any) => void;
+  settings: Settings;
+  onUpdateSettings: (updates: Partial<Settings>) => void;
 }
 
 const SOUND_OPTIONS = [
@@ -28,7 +23,9 @@ const SOUND_OPTIONS = [
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, settings, onUpdateSettings }) => {
-  const [activeSection, setActiveSection] = useState<'general' | 'sounds' | 'privacy'>('general');
+  const [activeSection, setActiveSection] = useState<'general' | 'sounds' | 'privacy' | 'localization'>('general');
+
+  const t = (key: any) => getTranslation(settings.language, key);
 
   const playPreview = (url: string) => {
     try {
@@ -70,7 +67,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, settings, o
           onClick={() => setActiveSection('privacy')}
           className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all ${activeSection === 'privacy' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}
         >
-          Privacy
+          {t('privacy')}
+        </button>
+        <button 
+          onClick={() => setActiveSection('localization')}
+          className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all ${activeSection === 'localization' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}
+        >
+          {t('localization')}
         </button>
       </div>
 
@@ -190,6 +193,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, settings, o
                   </div>
                 </div>
              </div>
+          </div>
+        )}
+
+        {activeSection === 'localization' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                <Globe className="w-3 h-3" /> {t('language')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {LANGUAGES.map((lang) => (
+                  <button 
+                    key={lang.code}
+                    onClick={() => onUpdateSettings({ language: lang.code })}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${settings.language === lang.code ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-transparent hover:bg-slate-100'}`}
+                  >
+                    <span className="text-xs font-bold text-slate-700">{lang.name}</span>
+                    {settings.language === lang.code && <Check className="w-3 h-3 text-blue-600" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                <MapPin className="w-3 h-3" /> {t('country')}
+              </label>
+              <div className="space-y-2">
+                {COUNTRIES.map((country) => (
+                  <button 
+                    key={country.code}
+                    onClick={() => onUpdateSettings({ 
+                      country: country.code,
+                      currency: country.currency
+                    })}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${settings.country === country.code ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-transparent hover:bg-slate-100'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-700">{country.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400">{country.currency}</span>
+                      {settings.country === country.code && <Check className="w-3 h-3 text-emerald-600" />}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

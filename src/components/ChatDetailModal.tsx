@@ -30,7 +30,11 @@ interface ChatDetailModalProps {
   onDeleteMessage?: (msgId: string) => void;
   onClearChat?: () => void;
   onFollow?: (name: string) => void;
+  onUnfollow?: (name: string) => void;
   onAddFriend?: (name: string, avatar: string) => void;
+  onUnfriend?: (name: string) => void;
+  isFollowing?: boolean;
+  isFriend?: boolean;
 }
 
 export const ChatDetailModal: React.FC<ChatDetailModalProps> = ({
@@ -42,7 +46,11 @@ export const ChatDetailModal: React.FC<ChatDetailModalProps> = ({
   onDeleteMessage,
   onClearChat,
   onFollow,
-  onAddFriend
+  onUnfollow,
+  onAddFriend,
+  onUnfriend,
+  isFollowing,
+  isFriend
 }) => {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -286,11 +294,15 @@ export const ChatDetailModal: React.FC<ChatDetailModalProps> = ({
             isOnline: chat.isOnline,
             followers: 842,
             following: 256,
-            friends: 124
+            friends: 124,
+            isFollowing,
+            isFriend
           }} 
           onClose={() => setShowProfile(false)} 
           onFollow={() => onFollow?.(chat.name)}
+          onUnfollow={() => onUnfollow?.(chat.name)}
           onAddFriend={() => onAddFriend?.(chat.name, chat.avatar)}
+          onUnfriend={() => onUnfriend?.(chat.name)}
         />
       )}
 

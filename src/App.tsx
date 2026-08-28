@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { TabType, ChatItem, MessageItem, NotificationItem, MarketItem, UserProfile } from './types';
+import React, { useState, useEffect } from 'react';
+import { TabType, ChatItem, MessageItem, NotificationItem, MarketItem, UserProfile, Settings } from './types';
 import { initialChats, sampleChatMessages, initialMarketItems, initialGigs, initialSeekers } from './data';
+import { COUNTRIES, getTranslation, TranslationKey } from './lib/i18n';
+import { useFirebase } from './hooks/useFirebase';
+import { signInWithGoogle, logout, signupWithEmail, loginWithEmail } from './lib/firebase';
 import { BottomNavBar } from './components/BottomNavBar';
 import { ChatsScreen } from './components/ChatsScreen';
 import { GigsScreen } from './components/GigsScreen';
@@ -14,6 +17,7 @@ import { MarketScreen } from './components/MarketScreen';
 import { MarketItemDetail } from './components/MarketItemDetail';
 import { ChatDetailModal } from './components/ChatDetailModal';
 import { ProfileView } from './components/ProfileView';
+import { AuthModal } from './components/AuthModal';
 import { 
   Search, 
   SlidersHorizontal, 
@@ -32,33 +36,41 @@ import {
   User
 } from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
-import { EditProfile } from './components/EditProfile';
 import { SettingsView } from './components/SettingsView';
 
 const ProfileMenu: React.FC<{ 
   onClose: () => void, 
-  onNavigate: (view: 'my-profile' | 'edit' | 'admin' | 'subscription' | 'about' | 'help' | 'settings' | 'logout') => void 
-}> = ({ onClose, onNavigate }) => (
+  onNavigate: (view: 'my-profile' | 'admin' | 'subscription' | 'about' | 'help' | 'settings' | 'logout' | 'login') => void,
+  isAuthenticated: boolean,
+  userEmail?: string | null
+}> = ({ onClose, onNavigate, isAuthenticated, userEmail }) => (
   <div className="absolute top-12 left-4 w-56 bg-white border border-slate-100 shadow-2xl rounded-2xl py-3 z-[60] animate-in fade-in zoom-in-95 duration-200">
     <div className="px-4 py-2 border-b border-slate-50 mb-2">
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">My Account</p>
     </div>
-    <button onClick={() => onNavigate('my-profile')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
-      <User className="w-4 h-4 text-slate-500" />
-      <span className="text-xs font-bold">My Profile</span>
-    </button>
-    <button onClick={() => onNavigate('edit')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
-      <Edit2 className="w-4 h-4 text-blue-500" />
-      <span className="text-xs font-bold">Edit Profile</span>
-    </button>
-    <button onClick={() => onNavigate('settings')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
-      <SlidersHorizontal className="w-4 h-4 text-purple-500" />
-      <span className="text-xs font-bold">Settings</span>
-    </button>
-    <button onClick={() => onNavigate('admin')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
-      <LayoutDashboard className="w-4 h-4 text-emerald-500" />
-      <span className="text-xs font-bold">Admin Dashboard</span>
-    </button>
+    {!isAuthenticated ? (
+      <button onClick={() => onNavigate('login')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-blue-600 transition-colors">
+        <LogOut className="w-4 h-4 rotate-180" />
+        <span className="text-xs font-bold">Sign In with Google</span>
+      </button>
+    ) : (
+      <>
+        <button onClick={() => onNavigate('my-profile')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
+          <User className="w-4 h-4 text-slate-500" />
+          <span className="text-xs font-bold">My Profile</span>
+        </button>
+        <button onClick={() => onNavigate('settings')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
+          <SlidersHorizontal className="w-4 h-4 text-purple-500" />
+          <span className="text-xs font-bold">Settings</span>
+        </button>
+      </>
+    )}
+    {userEmail === 'Timegig2026@gmail.com' && (
+      <button onClick={() => onNavigate('admin')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
+        <LayoutDashboard className="w-4 h-4 text-emerald-500" />
+        <span className="text-xs font-bold">Admin Dashboard</span>
+      </button>
+    )}
     <button onClick={() => onNavigate('subscription')} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-slate-700 transition-colors">
       <CreditCard className="w-4 h-4 text-amber-500" />
       <span className="text-xs font-bold">Subscription</span>
@@ -80,11 +92,13 @@ const ProfileMenu: React.FC<{
 );
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const { user, loading: firebaseLoading, syncCollection, syncSubcollection, addItem, updateItem, addSubItem, deleteItem, deleteSubItem, saveProfile, getProfile } = useFirebase();
   const [activeTab, setActiveTab] = useState<TabType>('gigs');
   const [searchQuery, setSearchQuery] = useState('');
-  const [chats, setChats] = useState<ChatItem[]>(initialChats);
+  const [chats, setChats] = useState<ChatItem[]>([]);
   const [activeChat, setActiveChat] = useState<ChatItem | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<string, MessageItem[]>>(sampleChatMessages);
+  const [chatMessages, setChatMessages] = useState<Record<string, MessageItem[]>>({});
   const [createModalType, setCreateModalType] = useState<'gig' | 'seeker' | 'market' | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
@@ -92,7 +106,10 @@ export default function App() {
 
   const [isAccountDisabled, setIsAccountDisabled] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [activeModalView, setActiveModalView] = useState<'my-profile' | 'edit' | 'admin' | 'subscription' | 'about' | 'help' | 'settings' | null>(null);
+  const [activeModalView, setActiveModalView] = useState<'my-profile' | 'admin' | 'subscription' | 'about' | 'help' | 'settings' | 'auth' | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [isNewUserFlow, setIsNewUserFlow] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [userStats, setUserStats] = useState({
     followers: 1240,
@@ -100,14 +117,122 @@ export default function App() {
     friends: 456
   });
 
-  const [settings, setSettings] = useState({
+  const [followingList, setFollowingList] = useState<string[]>([]);
+  const [friendsList, setFriendsList] = useState<string[]>([]);
+
+  const [profileData, setProfileData] = useState({
+    name: 'Julianna Smith',
+    email: 'julianna@example.com',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    phone: '+27 71 234 5678',
+    province: 'Western Cape',
+    location: 'Cape Town',
+  });
+
+  const [settings, setSettings] = useState<Settings>({
     isSoundEnabled: true,
     notificationSound: 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3',
     chatSound: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
     isPrivate: false,
     showOnlineStatus: true,
     showLastSeen: true,
+    language: 'en',
+    country: 'ZA',
+    currency: 'ZAR'
   });
+
+  // Splash Screen Timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Message Sync for active chat
+  useEffect(() => {
+    if (!user || !activeChat) return;
+
+    const unsubMessages = syncSubcollection('chats', activeChat.id, 'messages', (msgs) => {
+      setChatMessages(prev => ({
+        ...prev,
+        [activeChat.id]: msgs
+      }));
+    });
+
+    return () => {
+      unsubMessages();
+    };
+  }, [user, activeChat]);
+
+  // Public Firebase Sync
+  useEffect(() => {
+    const unsubMarket = syncCollection('marketItems', setMarketItems);
+    const unsubGigs = syncCollection('gigs', setGigs);
+    const unsubSeekers = syncCollection('seekers', setSeekers);
+
+    return () => {
+      unsubMarket();
+      unsubGigs();
+      unsubSeekers();
+    };
+  }, []);
+
+  // Private Firebase Sync
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubChats = syncCollection('chats', setChats);
+    const unsubNotifs = syncCollection('notifications', setNotifications);
+    const unsubSubs = syncCollection('subscriptions', setPendingPopSubmissions);
+    const unsubAllSubs = syncCollection('subscriptions', setAllSubscriptions);
+    const unsubUsers = syncCollection('users', setUsers);
+
+    // Load Profile
+    getProfile(user.uid).then(data => {
+      if (data) {
+        setProfileData(prev => ({ ...prev, ...data }));
+        if (data.settings) setSettings(data.settings);
+        if (data.followingList) setFollowingList(data.followingList);
+        if (data.friendsList) setFriendsList(data.friendsList);
+        if (data.userStats) setUserStats(data.userStats);
+      } else {
+        // Initial save if first time
+        saveProfile(user.uid, { ...profileData, followingList: [], friendsList: [], userStats }, settings);
+      }
+    });
+
+    return () => {
+      unsubChats();
+      unsubNotifs();
+      unsubSubs();
+      unsubAllSubs();
+      unsubUsers();
+    };
+  }, [user]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [allSubscriptions, setAllSubscriptions] = useState<any[]>([]);
+
+  const handleLogout = () => {
+    logout();
+    setChats([]);
+    setMarketItems([]);
+    setGigs([]);
+    setSeekers([]);
+    setUsers([]);
+    setAllSubscriptions([]);
+    setActiveModalView('auth');
+    setAuthMode('login');
+  };
 
   const playSound = (url: string) => {
     if (settings.isSoundEnabled) {
@@ -131,63 +256,164 @@ export default function App() {
   const [showApprovalSuccess, setShowApprovalSuccess] = useState(false);
 
   const currentUser: UserProfile = {
-    id: 'me',
-    name: 'Julianna Smith',
-    email: 'julianna@example.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    phone: '+27 71 234 5678',
-    province: 'Western Cape',
-    location: 'Cape Town',
+    id: user?.uid || 'me',
+    ...profileData,
     ...userStats
   };
 
   const handleFollow = (userName: string) => {
     playSound(settings.notificationSound);
-    const newNotif: NotificationItem = {
-      id: `notif-follow-${Date.now()}`,
-      title: 'New Follower!',
-      message: `${userName} started following you.`,
-      dateLabel: 'Today',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sourceType: 'notifications',
-      sourceId: 'new-follower',
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-    setUserStats(prev => ({ ...prev, followers: prev.followers + 1 }));
-    setToastMessage(`You are now following ${userName}`);
+    const isFollowing = followingList.includes(userName);
+
+    if (isFollowing) {
+      const newList = followingList.filter(name => name !== userName);
+      setFollowingList(newList);
+      const newStats = { ...userStats, following: userStats.following - 1 };
+      setUserStats(newStats);
+      setToastMessage(`Unfollowed ${userName}`);
+      if (user) saveProfile(user.uid, { followingList: newList, userStats: newStats }, settings);
+    } else {
+      const newList = [...followingList, userName];
+      setFollowingList(newList);
+      const newStats = { ...userStats, following: userStats.following + 1 };
+      setUserStats(newStats);
+      setToastMessage(`Now following ${userName}`);
+      if (user) saveProfile(user.uid, { followingList: newList, userStats: newStats }, settings);
+      
+      const newNotif: NotificationItem = {
+        id: `notif-follow-${Date.now()}`,
+        title: 'New Follower!',
+        message: `${userName} started following you.`,
+        dateLabel: 'Today',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sourceType: 'notifications',
+        sourceId: 'new-follower',
+        read: false
+      };
+      if (user) {
+        addItem('notifications', { ...newNotif, userId: user.uid });
+      } else {
+        setNotifications(prev => [newNotif, ...prev]);
+      }
+    }
     setTimeout(() => setToastMessage(null), 2000);
   };
 
   const handleFriendRequest = (userName: string, avatar: string) => {
     playSound(settings.notificationSound);
-    const newNotif: NotificationItem = {
-      id: `notif-friend-${Date.now()}`,
-      title: 'Friend Request',
-      message: `${userName} wants to be your friend.`,
-      dateLabel: 'Today',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sourceType: 'friend_request',
-      sourceId: 'friend-req',
-      read: false,
-      actionRequired: true,
-      actionType: 'friend_request',
-      senderAvatar: avatar
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-    setToastMessage(`Friend request sent to ${userName}`);
+    const isFriend = friendsList.includes(userName);
+
+    if (isFriend) {
+      const newList = friendsList.filter(name => name !== userName);
+      setFriendsList(newList);
+      const newStats = { ...userStats, friends: userStats.friends - 1 };
+      setUserStats(newStats);
+      setToastMessage(`Unfriended ${userName}`);
+      if (user) saveProfile(user.uid, { friendsList: newList, userStats: newStats }, settings);
+    } else {
+      const newNotif: NotificationItem = {
+        id: `notif-friend-${Date.now()}`,
+        title: 'Friend Request',
+        message: `${userName} wants to be your friend.`,
+        dateLabel: 'Today',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sourceType: 'friend_request',
+        sourceId: 'friend-req',
+        read: false,
+        actionRequired: true,
+        actionType: 'friend_request',
+        senderAvatar: avatar,
+        senderName: userName
+      };
+      if (user) {
+        addItem('notifications', { ...newNotif, userId: user.uid });
+      } else {
+        setNotifications(prev => [newNotif, ...prev]);
+      }
+      setToastMessage(`Friend request sent to ${userName}`);
+    }
     setTimeout(() => setToastMessage(null), 2000);
   };
 
-  const [marketItems, setMarketItems] = useState<MarketItem[]>(initialMarketItems);
-  const [gigsItems, setGigsItems] = useState<MarketItem[]>(initialGigs);
-  const [seekersItems, setSeekersItems] = useState<MarketItem[]>(initialSeekers);
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+  const [gigs, setGigs] = useState<MarketItem[]>([]);
+  const [seekers, setSeekers] = useState<MarketItem[]>([]);
+  const [latestActivity, setLatestActivity] = useState<{user: string, action: string} | null>(null);
+
+  useEffect(() => {
+    const all = [...marketItems, ...gigs, ...seekers].sort((a: any, b: any) => {
+      const t1 = a.timestamp?.seconds || 0;
+      const t2 = b.timestamp?.seconds || 0;
+      return t2 - t1;
+    });
+    if (all.length > 0) {
+      const latest = all[0];
+      setLatestActivity({
+        user: latest.seller,
+        action: `posted a new ${latest.category}: ${latest.title}`
+      });
+    }
+  }, [marketItems, gigs, seekers]);
+
+  const handleLike = (id: string, type: 'market' | 'gigs' | 'seekers') => {
+    const updateList = (prev: MarketItem[]) => 
+      prev.map(item => {
+        if (item.id === id) {
+          const isLiked = !item.isLiked;
+          return {
+            ...item,
+            isLiked,
+            likes: (item.likes || 0) + (isLiked ? 1 : -1)
+          };
+        }
+        return item;
+      });
+
+    if (user) {
+      const collectionName = type === 'market' ? 'marketItems' : type === 'gigs' ? 'gigs' : 'seekers';
+      updateItem(collectionName, id, {
+        isLiked: !marketItems.find(i => i.id === id)?.isLiked,
+        likes: (marketItems.find(i => i.id === id)?.likes || 0) + (!marketItems.find(i => i.id === id)?.isLiked ? 1 : -1)
+      });
+    }
+
+    if (type === 'market') setMarketItems(updateList);
+    else if (type === 'gigs') setGigs(updateList);
+    else if (type === 'seekers') setSeekers(updateList);
+
+    if (selectedMarketItem?.id === id) {
+      setSelectedMarketItem(prev => prev ? {
+        ...prev,
+        isLiked: !prev.isLiked,
+        likes: (prev.likes || 0) + (!prev.isLiked ? 1 : -1)
+      } : null);
+    }
+  };
+
+  const handleShare = async (item: MarketItem) => {
+    const shareData = {
+      title: item.title,
+      text: `${item.title} - ${item.price} at ${item.location}. Check it out on TimeGig!`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        const text = encodeURIComponent(`${shareData.text} ${shareData.url}`);
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+      }
+    } catch (err) {
+      console.error('Share failed:', err);
+    }
+  };
   const [marketForm, setMarketForm] = useState({
     title: '',
     category: 'Design Assets',
     description: '',
     price: '',
-    province: 'California',
+    province: 'Western Cape',
     location: '',
     contactInfo: '',
     images: [] as string[],
@@ -254,83 +480,76 @@ export default function App() {
       return;
     }
 
+    const symbol = COUNTRIES.find(c => c.code === settings.country)?.symbol || 'R';
+    const cleanPrice = marketForm.price.replace(/[^\d.]/g, '');
+    // Keep it numeric in state, format for display
+    const displayPrice = `${symbol}${cleanPrice}`;
+
     const newItem: MarketItem = {
-      id: `m-${Date.now()}`,
+      id: `${createModalType?.charAt(0)}-${Date.now()}`,
       title: marketForm.title,
       category: marketForm.category,
       description: marketForm.description || 'No description provided.',
-      price: marketForm.price.startsWith('$') ? marketForm.price : `$${marketForm.price}`,
+      price: displayPrice,
       province: marketForm.province,
       location: marketForm.location || 'Online / Remote',
       contactInfo: marketForm.contactInfo || 'user@example.com',
       images: marketForm.images.length > 0 ? marketForm.images : ['https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80'],
-      seller: 'You (Verified Creator)',
+      seller: 'You (Verified User)',
       rating: '5.0',
+      likes: 0,
+      isLiked: false
     };
 
     setIsCongratulating(true);
-    setTimeout(() => {
-      setMarketItems((prev) => [newItem, ...prev]);
+    setTimeout(async () => {
+      if (user) {
+        const collectionName = createModalType === 'market' ? 'marketItems' : createModalType === 'gig' ? 'gigs' : 'seekers';
+        await addItem(collectionName, newItem);
+      }
+
+      if (createModalType === 'market') {
+        setMarketItems((prev) => [newItem, ...prev]);
+        setActiveTab('market');
+      } else if (createModalType === 'gig') {
+        setGigs((prev) => [newItem, ...prev]);
+        setActiveTab('gigs');
+      } else if (createModalType === 'seeker') {
+        setSeekers((prev) => [newItem, ...prev]);
+        setActiveTab('seekers');
+      }
+      
       setIsCongratulating(false);
       setCreateModalType(null);
       setMarketForm({
         title: '',
-        category: 'Design Assets',
+        category: 'General',
         description: '',
         price: '',
-        province: 'California',
+        province: 'Western Cape',
         location: '',
         contactInfo: '',
         images: [],
       });
-      setActiveTab('market');
-      setToastMessage('Item successfully listed in Market!');
+      setToastMessage(`${createModalType?.charAt(0).toUpperCase()}${createModalType?.slice(1)} successfully listed!`);
       setTimeout(() => setToastMessage(null), 3000);
     }, 2500);
   };
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 'notif-1',
-      title: 'New Gig Application',
-      message: 'Sarah Connor applied for your Senior React Developer gig.',
-      dateLabel: 'Today',
-      timestamp: '10:45 AM',
-      sourceType: 'gigs',
-      sourceId: 'gig-1',
-      read: false,
-    },
-    {
-      id: 'notif-2',
-      title: 'New Message',
-      message: 'Alex Rivera sent you a message regarding design files.',
-      dateLabel: 'Today',
-      timestamp: '09:12 AM',
-      sourceType: 'chats',
-      sourceId: 'chat-1',
-      read: false,
-    },
-    {
-      id: 'notif-3',
-      title: 'Market Listing Update',
-      message: 'Your listing "UI/UX System Kit" was favorited by 3 users.',
-      dateLabel: 'Yesterday',
-      timestamp: '4:30 PM',
-      sourceType: 'market',
-      sourceId: 'market-1',
-      read: true,
-    },
-    {
-      id: 'notif-4',
-      title: 'Connection Accepted',
-      message: 'David Kim accepted your seeker network connection request.',
-      dateLabel: 'August 26, 2026',
-      timestamp: '2:15 PM',
-      sourceType: 'seekers',
-      sourceId: 'seeker-1',
-      read: true,
-    },
-  ]);
+  const formatPrice = (priceStr: string) => {
+    const symbol = COUNTRIES.find(c => c.code === settings.country)?.symbol || 'R';
+    // If it's a number-like string (e.g. "R850" or "850"), replace the symbol
+    const numericPart = priceStr.replace(/[^\d.,]/g, '');
+    if (numericPart) {
+      const suffix = priceStr.split(/[0-9]/).pop() || '';
+      return `${symbol}${numericPart}${suffix}`;
+    }
+    return priceStr;
+  };
+
+  const t = (key: TranslationKey) => getTranslation(settings.language, key);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
 
@@ -349,6 +568,9 @@ export default function App() {
   };
 
   const handleClearSelectedNotifications = () => {
+    if (user) {
+      selectedNotificationIds.forEach(id => deleteItem('notifications', id));
+    }
     setNotifications((prev) => prev.filter((n) => !selectedNotificationIds.includes(n.id)));
     setSelectedNotificationIds([]);
     setIsSelectionMode(false);
@@ -357,6 +579,9 @@ export default function App() {
   };
 
   const handleClearAllNotifications = () => {
+    if (user) {
+      notifications.forEach(n => deleteItem('notifications', n.id));
+    }
     setNotifications([]);
     setSelectedNotificationIds([]);
     setIsSelectionMode(false);
@@ -365,6 +590,9 @@ export default function App() {
   };
 
   const handleNotificationClick = (notif: NotificationItem) => {
+    if (user) {
+      updateItem('notifications', notif.id, { read: true });
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
     );
@@ -393,6 +621,9 @@ export default function App() {
 
   const handleSelectChat = (chat: ChatItem) => {
     // Mark as read when selected
+    if (user) {
+      updateItem('chats', chat.id, { unreadCount: 0 });
+    }
     setChats((prev) =>
       prev.map((c) => (c.id === chat.id ? { ...c, unreadCount: 0 } : c))
     );
@@ -402,6 +633,9 @@ export default function App() {
   
   const handleUpdateMessage = (msgId: string, updates: Partial<MessageItem>) => {
     if (!activeChat) return;
+    if (user) {
+      updateItem(`chats/${activeChat.id}/messages`, msgId, updates);
+    }
     setChatMessages((prev) => {
       const chatMsgs = prev[activeChat.id] || [];
       return {
@@ -413,6 +647,9 @@ export default function App() {
 
   const handleDeleteMessage = (msgId: string) => {
     if (!activeChat) return;
+    if (user) {
+      deleteSubItem('chats', activeChat.id, 'messages', msgId);
+    }
     setChatMessages((prev) => {
       const chatMsgs = prev[activeChat.id] || [];
       return {
@@ -447,6 +684,14 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'sent',
     };
+
+    if (user) {
+      addSubItem('chats', activeChat.id, 'messages', newMessage);
+      updateItem('chats', activeChat.id, {
+        lastMessage: msg.text || (msg.imageUrl ? 'Image' : 'Media'),
+        time: new Date().toISOString()
+      });
+    }
 
     setChatMessages((prev) => ({
       ...prev,
@@ -509,6 +754,18 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
     handleSelectChat(newChat);
   };
 
+  const renderActivityTicker = () => {
+    if (!latestActivity) return null;
+    return (
+      <div className="mx-4 mb-4 p-2 bg-blue-50/50 border border-blue-100 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-2 duration-500">
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse flex-shrink-0" />
+        <p className="text-[10px] text-blue-700 font-medium overflow-hidden whitespace-nowrap text-ellipsis">
+          <span className="font-bold">{latestActivity.user}</span> {latestActivity.action}
+        </p>
+      </div>
+    );
+  };
+
   const renderSearchHeader = (title: string, onCreate?: () => void) => (
     <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-2">
       <div className="max-w-xs mx-auto flex items-center gap-2">
@@ -528,13 +785,16 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
           {showProfileMenu && (
             <ProfileMenu 
               onClose={() => setShowProfileMenu(false)} 
+              isAuthenticated={!!user}
+              userEmail={user?.email}
               onNavigate={(view) => {
-                if (view === 'logout') {
-                  alert('Logging out...');
-                } else {
-                  setActiveModalView(view);
-                }
                 setShowProfileMenu(false);
+                if (view === 'logout') handleLogout();
+                else if (view === 'login') {
+                  setAuthMode('login');
+                  setActiveModalView('auth');
+                }
+                else setActiveModalView(view);
               }} 
             />
           )}
@@ -563,6 +823,16 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
       </div>
     </div>
   );
+
+  if (showSplash) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center animate-out fade-out duration-1000 delay-[4000ms]">
+        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter animate-in zoom-in-50 duration-700">
+          TimeGiG
+        </h1>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans antialiased selection:bg-slate-100 selection:text-slate-900 pb-16">
@@ -600,25 +870,52 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
         {/* Modals/Overlays */}
         {activeModalView === 'my-profile' && (
           <ProfileView 
-            user={currentUser} 
+            user={profileData} 
+            language={settings.language}
             onClose={() => setActiveModalView(null)} 
-            onFollow={() => {}} // No-op for self
-            onAddFriend={() => {}} // No-op for self
-          />
-        )}
-        {activeModalView === 'edit' && (
-          <EditProfile 
-            currentUser={currentUser} 
+            isEditable={true}
             isAccountDisabled={isAccountDisabled}
             onToggleAccountStatus={() => setIsAccountDisabled(!isAccountDisabled)}
-            onClose={() => setActiveModalView(null)} 
+            onUpdateProfile={(updates) => {
+              const newData = { ...profileData, ...updates };
+              setProfileData(newData);
+              if (user) saveProfile(user.uid, newData, settings);
+            }}
+            onSaveSuccess={() => {
+              if (isNewUserFlow) {
+                setIsNewUserFlow(false);
+                setActiveModalView(null);
+                setTimeout(() => setCreateModalType('gig'), 500);
+              }
+            }}
           />
         )}
-        {activeModalView === 'admin' && (
+        {activeModalView === 'auth' && (
+          <AuthModal 
+            mode={authMode}
+            onClose={() => setActiveModalView(null)}
+            onSwitchMode={setAuthMode}
+            onSuccess={(isNew) => {
+              if (isNew) {
+                setIsNewUserFlow(true);
+                setActiveModalView('my-profile');
+              } else {
+                setActiveModalView(null);
+              }
+            }}
+          />
+        )}
+        {activeModalView === 'admin' && user?.email === 'Timegig2026@gmail.com' && (
           <AdminDashboard 
             onClose={() => setActiveModalView(null)} 
             pendingSubmissions={pendingPopSubmissions}
+            allSubscriptions={allSubscriptions}
+            users={users}
+            gigsCount={gigs.length}
+            seekersCount={seekers.length}
+            marketItemsCount={marketItems.length}
             onApprove={(id) => {
+              if (user) updateItem('subscriptions', id, { status: 'Approved' });
               setPendingPopSubmissions(prev => prev.filter(s => s.id !== id));
               setShowApprovalSuccess(true);
               playSound(settings.notificationSound);
@@ -635,6 +932,7 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
               setNotifications(prev => [newNotif, ...prev]);
             }}
             onReject={(id) => {
+              if (user) updateItem('subscriptions', id, { status: 'Rejected' });
               setPendingPopSubmissions(prev => prev.filter(s => s.id !== id));
               setToastMessage('Subscription Rejected.');
               setTimeout(() => setToastMessage(null), 3000);
@@ -766,7 +1064,11 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
                           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                           status: 'Pending'
                         };
-                        setPendingPopSubmissions(prev => [newSubmission, ...prev]);
+                        if (user) {
+                          addItem('subscriptions', { ...newSubmission, userId: user.uid });
+                        } else {
+                          setPendingPopSubmissions(prev => [newSubmission, ...prev]);
+                        }
                         setSubscriptionStep('review');
                         setIsSubmittingPop(false);
                       }, 2000);
@@ -817,7 +1119,11 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
         {activeModalView === 'settings' && (
           <SettingsView 
             settings={settings}
-            onUpdateSettings={(updates) => setSettings(prev => ({ ...prev, ...updates }))}
+            onUpdateSettings={(updates) => {
+              const newSettings = { ...settings, ...updates };
+              setSettings(newSettings);
+              if (user) saveProfile(user.uid, profileData, newSettings);
+            }}
             onClose={() => setActiveModalView(null)} 
           />
         )}
@@ -857,31 +1163,43 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
 
         {activeTab === 'gigs' && (
           <div className="relative min-h-[calc(100vh-4rem)]">
-            {renderSearchHeader('GiGs', () => setCreateModalType('gig'))}
+            {renderSearchHeader(t('gigs'), () => setCreateModalType('gig'))}
+            <div className="pt-2">{renderActivityTicker()}</div>
             <GigsScreen 
-              items={gigsItems}
+              items={gigs.map(item => ({ ...item, price: formatPrice(item.price) }))}
               searchQuery={searchQuery}
-              onSelectGig={(item) => setSelectedMarketItem(item)}
+              language={settings.language}
+              onSelectGig={(item) => setSelectedMarketItem({ ...item, price: formatPrice(item.price) })}
+              onLike={(id) => handleLike(id, 'gigs')}
+              onShare={handleShare}
             />
           </div>
         )}
         {activeTab === 'seekers' && (
           <div className="relative min-h-[calc(100vh-4rem)]">
-            {renderSearchHeader('Seekers', () => setCreateModalType('seeker'))}
+            {renderSearchHeader(t('seekers'), () => setCreateModalType('seeker'))}
+            <div className="pt-2">{renderActivityTicker()}</div>
             <SeekersScreen 
-              items={seekersItems}
+              items={seekers.map(item => ({ ...item, price: formatPrice(item.price) }))}
               searchQuery={searchQuery}
-              onSelectSeeker={(item) => setSelectedMarketItem(item)}
+              language={settings.language}
+              onSelectSeeker={(item) => setSelectedMarketItem({ ...item, price: formatPrice(item.price) })}
+              onLike={(id) => handleLike(id, 'seekers')}
+              onShare={handleShare}
             />
           </div>
         )}
         {activeTab === 'market' && (
           <div className="relative min-h-[calc(100vh-4rem)]">
-            {renderSearchHeader('Market', () => setCreateModalType('market'))}
+            {renderSearchHeader(t('market'), () => setCreateModalType('market'))}
+            <div className="pt-2">{renderActivityTicker()}</div>
             <MarketScreen
-              items={marketItems}
+              items={marketItems.map(item => ({ ...item, price: formatPrice(item.price) }))}
               searchQuery={searchQuery}
-              onBuyItem={(item) => setSelectedMarketItem(item)}
+              language={settings.language}
+              onBuyItem={(item) => setSelectedMarketItem({ ...item, price: formatPrice(item.price) })}
+              onLike={(id) => handleLike(id, 'market')}
+              onShare={handleShare}
             />
           </div>
         )}
@@ -1008,7 +1326,10 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
                                       e.stopPropagation();
                                       playSound(settings.notificationSound);
                                       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, actionRequired: false, message: 'You accepted the friend request.' } : n));
-                                      setUserStats(prev => ({ ...prev, friends: prev.friends + 1 }));
+                                      if (notif.senderName) {
+                                        setFriendsList(prev => [...prev, notif.senderName!]);
+                                        setUserStats(prev => ({ ...prev, friends: prev.friends + 1 }));
+                                      }
                                       setToastMessage('Friend request accepted!');
                                       setTimeout(() => setToastMessage(null), 2000);
                                     }}
@@ -1053,247 +1374,242 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
 
       {/* Create Modal / Fullscreen View */}
       {createModalType && (
-        createModalType === 'market' ? (
-          <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-            {isCongratulating ? (
-              <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-6 shadow-md">
-                  <Check className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">🎉 Congratulations!</h2>
-                <p className="text-base text-slate-600 max-w-md mb-6">
-                  Your marketplace listing <span className="font-semibold text-slate-900">"{marketForm.title}"</span> has been successfully published to the Market!
-                </p>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-700">
-                  Redirecting to your new listing in Market...
-                </div>
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          {isCongratulating ? (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-6 shadow-md">
+                <Check className="w-10 h-10" />
               </div>
-            ) : (
-              <div className="max-w-2xl mx-auto px-6 py-8 pb-24">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Create Marketplace Listing</h1>
-                    <p className="text-xs text-slate-500 mt-0.5">Fill in the details to publish your item to the marketplace</p>
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">🎉 Congratulations!</h2>
+              <p className="text-base text-slate-600 max-w-md mb-6">
+                Your <span className="capitalize">{createModalType}</span> listing <span className="font-semibold text-slate-900">"{marketForm.title}"</span> has been successfully published!
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-700">
+                Redirecting to your new listing...
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-2xl mx-auto px-6 py-8 pb-24">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 capitalize">
+                    {createModalType === 'market' ? t('market_listing') : createModalType === 'gig' ? t('gig_listing') : t('seeker_listing')}
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-0.5">Fill in the details to publish your {createModalType} to the community</p>
+                </div>
+                <button
+                  onClick={() => setCreateModalType(null)}
+                  className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateMarketItem} className="space-y-6">
+                {/* Upload multiple images */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                    Upload Images (Select Multiple)
+                  </label>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-slate-400 transition-colors bg-slate-50/50">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleMarketImagesChange}
+                      className="hidden"
+                      id="market-image-upload"
+                    />
+                    <label htmlFor="market-image-upload" className="cursor-pointer flex flex-col items-center">
+                      <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                      <span className="text-sm font-semibold text-slate-800">Click to upload photos</span>
+                      <span className="text-xs text-slate-400 mt-1">PNG, JPG, WEBP supported</span>
+                    </label>
                   </div>
-                  <button
-                    onClick={() => setCreateModalType(null)}
-                    className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+
+                  {marketForm.images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      {marketForm.images.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 h-24 bg-slate-100 shadow-2xs">
+                          <img src={img} alt={`Upload ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMarketForm(prev => ({
+                                ...prev,
+                                images: prev.images.filter((_, i) => i !== idx)
+                              }));
+                            }}
+                            className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <form onSubmit={handleCreateMarketItem} className="space-y-6">
-                  {/* Upload multiple images from device by selection */}
+                {/* Title & Category */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                      Upload Images from Device (Multiple)
-                    </label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-slate-400 transition-colors bg-slate-50/50">
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleMarketImagesChange}
-                        className="hidden"
-                        id="market-image-upload"
-                      />
-                      <label htmlFor="market-image-upload" className="cursor-pointer flex flex-col items-center">
-                        <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                        <span className="text-sm font-semibold text-slate-800">Click to upload photos from device</span>
-                        <span className="text-xs text-slate-400 mt-1">Support PNG, JPG, WEBP (Select multiple files)</span>
-                      </label>
-                    </div>
-
-                    {marketForm.images.length > 0 && (
-                      <div className="grid grid-cols-3 gap-3 mt-4">
-                        {marketForm.images.map((img, idx) => (
-                          <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 h-24 bg-slate-100 shadow-2xs">
-                            <img src={img} alt={`Upload ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMarketForm(prev => ({
-                                  ...prev,
-                                  images: prev.images.filter((_, i) => i !== idx)
-                                }));
-                              }}
-                              className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Title & Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Item Title *</label>
-                      <input
-                        type="text"
-                        required
-                        value={marketForm.title}
-                        onChange={(e) => setMarketForm({ ...marketForm, title: e.target.value })}
-                        placeholder="e.g. Modern UI Component Library"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Category</label>
-                      <select
-                        value={marketForm.category}
-                        onChange={(e) => setMarketForm({ ...marketForm, category: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
-                      >
-                        <option value="Design Assets">Design Assets</option>
-                        <option value="Software Templates">Software Templates</option>
-                        <option value="Web Development">Web Development</option>
-                        <option value="Hardware & Devices">Hardware & Devices</option>
-                        <option value="Services & Consulting">Services & Consulting</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Describe market item */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Describe Market Item *</label>
-                    <textarea
-                      rows={4}
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">{t('title')} *</label>
+                    <input
+                      type="text"
                       required
-                      value={marketForm.description}
-                      onChange={(e) => setMarketForm({ ...marketForm, description: e.target.value })}
-                      placeholder="Describe features, specifications, and what is included..."
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black resize-none"
+                      value={marketForm.title}
+                      onChange={(e) => setMarketForm({ ...marketForm, title: e.target.value })}
+                      placeholder={createModalType === 'gig' ? 'e.g. Senior Frontend Developer' : createModalType === 'seeker' ? 'e.g. UI/UX Designer looking for work' : 'e.g. iPhone 15 Pro'}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
                     />
                   </div>
-
-                  {/* Set price */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Set Price *</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Category</label>
+                    <select
+                      value={marketForm.category}
+                      onChange={(e) => setMarketForm({ ...marketForm, category: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
+                    >
+                      {createModalType === 'market' && (
+                        <>
+                          <option value="Design Assets">Design Assets</option>
+                          <option value="Software Templates">Software Templates</option>
+                          <option value="Web Development">Web Development</option>
+                          <option value="Hardware & Devices">Hardware & Devices</option>
+                          <option value="Services & Consulting">Services & Consulting</option>
+                        </>
+                      )}
+                      {createModalType === 'gig' && (
+                        <>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Design">Design</option>
+                          <option value="Marketing">Marketing</option>
+                          <option value="Writing">Writing</option>
+                          <option value="Other">Other</option>
+                        </>
+                      )}
+                      {createModalType === 'seeker' && (
+                        <>
+                          <option value="Full-time">Full-time</option>
+                          <option value="Freelance">Freelance</option>
+                          <option value="Contract">Contract</option>
+                          <option value="Part-time">Part-time</option>
+                        </>
+                      )}
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">{t('description')} *</label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={marketForm.description}
+                    onChange={(e) => setMarketForm({ ...marketForm, description: e.target.value })}
+                    placeholder="Provide clear details and requirements..."
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black resize-none"
+                  />
+                </div>
+
+                {/* Price / Budget */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    {createModalType === 'market' ? t('price') : 'Budget / Expected Pay'} *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                      {COUNTRIES.find(c => c.code === settings.country)?.symbol || 'R'}
+                    </span>
                     <input
                       type="text"
                       required
                       value={marketForm.price}
                       onChange={(e) => setMarketForm({ ...marketForm, price: e.target.value })}
-                      placeholder="e.g. $49 or Free"
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
+                      placeholder="e.g. 500"
+                      className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
                     />
                   </div>
+                </div>
 
-                  {/* Choose province and location option */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Choose Province / State</label>
-                      <select
-                        value={marketForm.province}
-                        onChange={(e) => setMarketForm({ ...marketForm, province: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
-                      >
-                        <option value="California">California</option>
-                        <option value="New York">New York</option>
-                        <option value="Ontario">Ontario</option>
-                        <option value="British Columbia">British Columbia</option>
-                        <option value="Île-de-France">Île-de-France</option>
-                        <option value="Tokyo Prefecture">Tokyo Prefecture</option>
-                        <option value="Greater London">Greater London</option>
-                        <option value="Berlin">Berlin</option>
-                        <option value="Remote / Global">Remote / Global</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Location Option</label>
-                      <input
-                        type="text"
-                        value={marketForm.location}
-                        onChange={(e) => setMarketForm({ ...marketForm, location: e.target.value })}
-                        placeholder="e.g. San Francisco, CA or Remote"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contact Information */}
+                {/* Location */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Contact Information</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Province / Region</label>
+                    <select
+                      value={marketForm.province}
+                      onChange={(e) => setMarketForm({ ...marketForm, province: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
+                    >
+                      {settings.country === 'ZA' ? (
+                        <>
+                          <option value="Gauteng">Gauteng</option>
+                          <option value="Western Cape">Western Cape</option>
+                          <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                          <option value="Eastern Cape">Eastern Cape</option>
+                          <option value="Free State">Free State</option>
+                          <option value="Limpopo">Limpopo</option>
+                          <option value="Mpumalanga">Mpumalanga</option>
+                          <option value="North West">North West</option>
+                          <option value="Northern Cape">Northern Cape</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="California">California</option>
+                          <option value="New York">New York</option>
+                          <option value="Ontario">Ontario</option>
+                          <option value="Remote">Remote</option>
+                        </>
+                      )}
+                      <option value="Remote / Global">Remote / Global</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">{t('location')}</label>
                     <input
                       type="text"
-                      value={marketForm.contactInfo}
-                      onChange={(e) => setMarketForm({ ...marketForm, contactInfo: e.target.value })}
-                      placeholder="e.g. support@yourdomain.com or +1 (555) 019-2834"
+                      value={marketForm.location}
+                      onChange={(e) => setMarketForm({ ...marketForm, location: e.target.value })}
+                      placeholder="e.g. Johannesburg or Remote"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
                     />
                   </div>
+                </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setCreateModalType(null)}
-                      className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-black transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 bg-black text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
-                    >
-                      Create Listing
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 capitalize">
-                Create New {createModalType}
-              </h3>
-              <div className="space-y-4">
+                {/* Contact Information */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Title / Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">{t('contact')}</label>
                   <input
                     type="text"
-                    placeholder={`Enter ${createModalType} title...`}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
+                    value={marketForm.contactInfo}
+                    onChange={(e) => setMarketForm({ ...marketForm, contactInfo: e.target.value })}
+                    placeholder="e.g. WhatsApp number or Email"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Enter details..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-black resize-none"
-                  />
-                </div>
-                <div className="flex items-center justify-end gap-2 pt-2">
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                   <button
+                    type="button"
                     onClick={() => setCreateModalType(null)}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-black transition-colors"
+                    className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-black transition-colors cursor-pointer"
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                   <button
-                    onClick={() => {
-                      const typeName = createModalType;
-                      setCreateModalType(null);
-                      setToastMessage(`${typeName} created successfully!`);
-                      setTimeout(() => setToastMessage(null), 3000);
-                    }}
-                    className="px-4 py-2 bg-black text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors"
+                    type="submit"
+                    className="px-6 py-2.5 bg-black text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
                   >
-                    Create
+                    {t('publish')}
                   </button>
                 </div>
-              </div>
+              </form>
             </div>
-          </div>
-        )
+          )}
+        </div>
       )}
 
       {/* Chat Conversation Screen Modal */}
@@ -1315,16 +1631,27 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
           onUpdateMessage={handleUpdateMessage}
           onDeleteMessage={handleDeleteMessage}
           onFollow={handleFollow}
+          onUnfollow={handleFollow}
           onAddFriend={handleFriendRequest}
+          onUnfriend={(name) => handleFriendRequest(name, '')}
+          isFollowing={followingList.includes(activeChat.name)}
+          isFriend={friendsList.includes(activeChat.name)}
         />
       )}
 
       {selectedMarketItem && (
         <MarketItemDetail
           item={selectedMarketItem}
+          language={settings.language}
           onClose={() => setSelectedMarketItem(null)}
           onWhatsAppClick={() => handleMarketWhatsApp(selectedMarketItem)}
           onInAppChatClick={() => handleMarketInAppChat(selectedMarketItem)}
+          onLike={(id) => {
+            const type = gigs.find(g => g.id === id) ? 'gigs' : 
+                        seekers.find(s => s.id === id) ? 'seekers' : 'market';
+            handleLike(id, type);
+          }}
+          onShare={handleShare}
         />
       )}
 
@@ -1332,6 +1659,7 @@ const handleSendMessage = (msg: { text?: string; imageUrl?: string; audioUrl?: s
       {!activeChat && (
         <BottomNavBar
           activeTab={activeTab}
+          language={settings.language}
           onTabChange={(tab) => {
             setActiveTab(tab);
             setSearchQuery('');

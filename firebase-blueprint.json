@@ -1,0 +1,119 @@
+{
+  "collections": {
+    "users": {
+      "description": "User profiles and settings",
+      "fields": {
+        "name": "string",
+        "email": "string",
+        "avatar": "string",
+        "phone": "string?",
+        "province": "string?",
+        "location": "string?",
+        "isOnline": "boolean?",
+        "followers": "number",
+        "following": "number",
+        "friends": "number",
+        "followingList": "array",
+        "friendsList": "array",
+        "settings": "map"
+      }
+    },
+    "marketItems": {
+      "description": "Items in the marketplace",
+      "fields": {
+        "title": "string",
+        "category": "string",
+        "description": "string",
+        "price": "string",
+        "province": "string",
+        "location": "string",
+        "contactInfo": "string",
+        "images": "array",
+        "seller": "string",
+        "rating": "string",
+        "likes": "number?",
+        "isLiked": "boolean?"
+      }
+    },
+    "gigs": {
+      "description": "Job gigs",
+      "fields": {
+        "title": "string",
+        "category": "string",
+        "description": "string",
+        "price": "string",
+        "province": "string",
+        "location": "string",
+        "contactInfo": "string",
+        "images": "array",
+        "seller": "string",
+        "rating": "string",
+        "likes": "number?",
+        "isLiked": "boolean?"
+      }
+    },
+    "seekers": {
+      "description": "Job seekers",
+      "fields": {
+        "title": "string",
+        "category": "string",
+        "description": "string",
+        "price": "string",
+        "province": "string",
+        "location": "string",
+        "contactInfo": "string",
+        "images": "array",
+        "seller": "string",
+        "rating": "string",
+        "likes": "number?",
+        "isLiked": "boolean?"
+      }
+    },
+    "chats": {
+      "description": "Chat conversations",
+      "fields": {
+        "participants": "array",
+        "lastMessage": "string",
+        "time": "timestamp",
+        "unreadCount": "map"
+      },
+      "subcollections": {
+        "messages": {
+          "fields": {
+            "senderId": "string",
+            "text": "string",
+            "time": "timestamp",
+            "status": "string?",
+            "imageUrl": "string?",
+            "audioUrl": "string?",
+            "videoUrl": "string?",
+            "isLiked": "boolean?"
+          }
+        }
+      }
+    },
+    "notifications": {
+      "description": "User notifications",
+      "fields": {
+        "userId": "string",
+        "title": "string",
+        "message": "string",
+        "timestamp": "timestamp",
+        "sourceType": "string",
+        "sourceId": "string",
+        "read": "boolean"
+      }
+    },
+    "subscriptions": {
+      "description": "Subscription proof of payments",
+      "fields": {
+        "userId": "string",
+        "plan": "string",
+        "price": "string",
+        "popUrl": "string",
+        "status": "string",
+        "timestamp": "timestamp"
+      }
+    }
+  }
+}

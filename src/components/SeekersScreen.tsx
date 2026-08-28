@@ -1,14 +1,19 @@
 import React from 'react';
 import { MarketItem } from '../types';
-import { Users, Star, ShoppingBag } from 'lucide-react';
+import { Users, Star, ShoppingBag, ThumbsUp, Share2 } from 'lucide-react';
+import { getTranslation, TranslationKey } from '../lib/i18n';
 
 interface SeekersScreenProps {
   items: MarketItem[];
   searchQuery: string;
   onSelectSeeker: (item: MarketItem) => void;
+  onLike?: (id: string) => void;
+  onShare?: (item: MarketItem) => void;
+  language?: string;
 }
 
-export const SeekersScreen: React.FC<SeekersScreenProps> = ({ items, searchQuery, onSelectSeeker }) => {
+export const SeekersScreen: React.FC<SeekersScreenProps> = ({ items, searchQuery, onSelectSeeker, onLike, onShare, language = 'en' }) => {
+  const t = (key: TranslationKey) => getTranslation(language, key);
   const filteredItems = items.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,6 +50,26 @@ export const SeekersScreen: React.FC<SeekersScreenProps> = ({ items, searchQuery
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+                <div className="absolute bottom-2 left-2 flex gap-1.5">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLike?.(item.id);
+                    }}
+                    className={`p-1.5 rounded-full backdrop-blur-md transition-all ${item.isLiked ? 'bg-blue-600 text-white' : 'bg-white/80 text-slate-600 hover:bg-white'}`}
+                  >
+                    <ThumbsUp className={`w-3 h-3 ${item.isLiked ? 'fill-current' : ''}`} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare?.(item);
+                    }}
+                    className="p-1.5 bg-white/80 backdrop-blur-md text-slate-600 rounded-full hover:bg-white transition-all"
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </button>
+                </div>
                 <div className="absolute bottom-2 right-2 bg-black/60 text-white px-1.5 py-0.5 rounded text-[10px] font-medium backdrop-blur-sm flex items-center gap-1">
                   <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {item.rating}
                 </div>

@@ -1,15 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, MapPin, Star, MessageCircle, X, ChevronRight } from 'lucide-react';
+import { ChevronLeft, MapPin, Star, MessageCircle, X, ChevronRight, ThumbsUp, Share2 } from 'lucide-react';
 import { MarketItem } from '../types';
+import { getTranslation, TranslationKey } from '../lib/i18n';
 
 interface MarketItemDetailProps {
   item: MarketItem;
   onClose: () => void;
   onWhatsAppClick: () => void;
   onInAppChatClick: () => void;
+  onLike?: (id: string) => void;
+  onShare?: (item: MarketItem) => void;
+  language?: string;
 }
 
-export const MarketItemDetail: React.FC<MarketItemDetailProps> = ({ item, onClose, onWhatsAppClick, onInAppChatClick }) => {
+export const MarketItemDetail: React.FC<MarketItemDetailProps> = ({ item, onClose, onWhatsAppClick, onInAppChatClick, onLike, onShare, language = 'en' }) => {
+  const t = (key: TranslationKey) => getTranslation(language, key);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,7 +70,22 @@ export const MarketItemDetail: React.FC<MarketItemDetailProps> = ({ item, onClos
         {/* Info */}
         <div className="p-4">
           <div className="flex justify-between items-start mb-2">
-             <h1 className="text-2xl font-bold text-slate-900 leading-tight">{item.title}</h1>
+             <h1 className="text-2xl font-bold text-slate-900 leading-tight flex-1">{item.title}</h1>
+             <div className="flex items-center gap-2 shrink-0">
+               <button 
+                 onClick={() => onLike?.(item.id)}
+                 className={`p-2 rounded-full transition-all ${item.isLiked ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-400 hover:text-slate-600'}`}
+               >
+                 <ThumbsUp className={`w-5 h-5 ${item.isLiked ? 'fill-current' : ''}`} />
+                 {item.likes !== undefined && <span className="text-[10px] font-bold block text-center mt-0.5">{item.likes}</span>}
+               </button>
+               <button 
+                 onClick={() => onShare?.(item)}
+                 className="p-2 bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+               >
+                 <Share2 className="w-5 h-5" />
+               </button>
+             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 mb-4">{item.price}</div>
           

@@ -1,14 +1,19 @@
 import React from 'react';
 import { MarketItem } from '../types';
-import { ShoppingBag, Star, MapPin, Mail, Tag, ExternalLink } from 'lucide-react';
+import { ShoppingBag, Star, MapPin, Mail, Tag, ExternalLink, ThumbsUp, Share2 } from 'lucide-react';
+import { getTranslation, TranslationKey } from '../lib/i18n';
 
 interface MarketScreenProps {
   items: MarketItem[];
   searchQuery: string;
   onBuyItem: (item: MarketItem) => void;
+  onLike?: (id: string) => void;
+  onShare?: (item: MarketItem) => void;
+  language?: string;
 }
 
-export const MarketScreen: React.FC<MarketScreenProps> = ({ items, searchQuery, onBuyItem }) => {
+export const MarketScreen: React.FC<MarketScreenProps> = ({ items, searchQuery, onBuyItem, onLike, onShare, language = 'en' }) => {
+  const t = (key: TranslationKey) => getTranslation(language, key);
   const filteredItems = items.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -53,6 +58,26 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ items, searchQuery, 
                       {item.images.length}
                     </div>
                   )}
+                  <div className="absolute bottom-2 right-2 flex gap-1.5">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onLike?.(item.id);
+                      }}
+                      className={`p-1.5 rounded-full backdrop-blur-md transition-all ${item.isLiked ? 'bg-blue-600 text-white' : 'bg-white/80 text-slate-600 hover:bg-white'}`}
+                    >
+                      <ThumbsUp className={`w-3 h-3 ${item.isLiked ? 'fill-current' : ''}`} />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShare?.(item);
+                      }}
+                      className="p-1.5 bg-white/80 backdrop-blur-md text-slate-600 rounded-full hover:bg-white transition-all"
+                    >
+                      <Share2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="w-full aspect-square bg-slate-100 flex items-center justify-center rounded-lg mb-2">

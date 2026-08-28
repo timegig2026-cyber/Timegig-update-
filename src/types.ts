@@ -10,6 +10,20 @@ export interface MarketItem {
   images: string[];
   seller: string;
   rating: string;
+  likes?: number;
+  isLiked?: boolean;
+}
+
+export interface Settings {
+  isSoundEnabled: boolean;
+  notificationSound: string;
+  chatSound: string;
+  isPrivate: boolean;
+  showOnlineStatus: boolean;
+  showLastSeen: boolean;
+  language: string;
+  country: string;
+  currency: string;
 }
 
 export type TabType = 'gigs' | 'seekers' | 'market' | 'chats' | 'notifications';
@@ -82,6 +96,7 @@ export interface NotificationItem {
   actionRequired?: boolean;
   actionType?: 'friend_request';
   senderAvatar?: string;
+  senderName?: string;
 }
 
 export interface UserProfile {
@@ -99,4 +114,11 @@ export interface UserProfile {
   isFollowing?: boolean;
   isFriend?: boolean;
   hasPendingRequest?: boolean;
+  followingList?: string[];
+  friendsList?: string[];
+  userStats?: {
+    followers: number;
+    following: number;
+    friends: number;
+  };
 }

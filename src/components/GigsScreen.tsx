@@ -1,14 +1,19 @@
 import React from 'react';
 import { MarketItem } from '../types';
-import { Briefcase, ShoppingBag } from 'lucide-react';
+import { Briefcase, ShoppingBag, ThumbsUp, Share2 } from 'lucide-react';
+import { getTranslation, TranslationKey } from '../lib/i18n';
 
 interface GigsScreenProps {
   items: MarketItem[];
   searchQuery: string;
   onSelectGig: (item: MarketItem) => void;
+  onLike?: (id: string) => void;
+  onShare?: (item: MarketItem) => void;
+  language?: string;
 }
 
-export const GigsScreen: React.FC<GigsScreenProps> = ({ items, searchQuery, onSelectGig }) => {
+export const GigsScreen: React.FC<GigsScreenProps> = ({ items, searchQuery, onSelectGig, onLike, onShare, language = 'en' }) => {
+  const t = (key: TranslationKey) => getTranslation(language, key);
   const filteredItems = items.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -47,6 +52,26 @@ export const GigsScreen: React.FC<GigsScreenProps> = ({ items, searchQuery, onSe
                 />
                 <div className="absolute top-2 left-2 bg-white/90 text-slate-800 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase backdrop-blur-sm">
                   {item.category}
+                </div>
+                <div className="absolute bottom-2 right-2 flex gap-1.5">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLike?.(item.id);
+                    }}
+                    className={`p-1.5 rounded-full backdrop-blur-md transition-all ${item.isLiked ? 'bg-blue-600 text-white' : 'bg-white/80 text-slate-600 hover:bg-white'}`}
+                  >
+                    <ThumbsUp className={`w-3 h-3 ${item.isLiked ? 'fill-current' : ''}`} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare?.(item);
+                    }}
+                    className="p-1.5 bg-white/80 backdrop-blur-md text-slate-600 rounded-full hover:bg-white transition-all"
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
               

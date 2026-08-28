@@ -16,19 +16,39 @@ type AdminTab = 'profit' | 'pop' | 'subscriptions' | 'agreements' | 'registered'
 interface AdminDashboardProps {
   onClose: () => void;
   pendingSubmissions: any[];
+  allSubscriptions: any[];
+  users: any[];
+  gigsCount: number;
+  seekersCount: number;
+  marketItemsCount: number;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, pendingSubmissions, onApprove, onReject }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  onClose, 
+  pendingSubmissions, 
+  allSubscriptions,
+  users,
+  gigsCount,
+  seekersCount,
+  marketItemsCount,
+  onApprove, 
+  onReject 
+}) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('profit');
   const [selectedPop, setSelectedPop] = useState<any | null>(null);
+
+  const approvedSubscriptions = allSubscriptions.filter(s => s.status === 'Approved');
+  const totalRevenue = approvedSubscriptions.reduce((acc, s) => {
+    const priceStr = s.plan?.match(/\d+,\d+/)?.[0]?.replace(',', '.') || '0';
+    return acc + parseFloat(priceStr);
+  }, 0);
 
   const tabs = [
     { id: 'profit', label: 'ProfitView', icon: TrendingUp },
     { id: 'pop', label: 'PoP', icon: CreditCard },
     { id: 'subscriptions', label: 'SubscriptionUsers', icon: Users },
-    { id: 'agreements', label: 'Agreement forms', icon: FileText },
     { id: 'registered', label: 'Registered users', icon: UserCheck },
   ];
 
@@ -38,34 +58,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, pending
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Revenue</p>
-                <h3 className="text-xl font-bold text-slate-900">$24,500.00</h3>
-                <p className="text-[10px] text-emerald-500 mt-1">↑ 12% from last month</p>
+                <h3 className="text-xl font-bold text-slate-900">R {totalRevenue.toFixed(2)}</h3>
+                <p className="text-[10px] text-emerald-500 mt-1">From {approvedSubscriptions.length} sales</p>
               </div>
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">New Subscriptions</p>
-                <h3 className="text-xl font-bold text-slate-900">142</h3>
-                <p className="text-[10px] text-blue-500 mt-1">↑ 8% from last month</p>
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Active Users</p>
+                <h3 className="text-xl font-bold text-slate-900">{users.length}</h3>
+                <p className="text-[10px] text-blue-500 mt-1">Registered members</p>
               </div>
             </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
+                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Gigs</p>
+                <p className="text-lg font-bold text-slate-900">{gigsCount}</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
+                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Seekers</p>
+                <p className="text-lg font-bold text-slate-900">{seekersCount}</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
+                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Market</p>
+                <p className="text-lg font-bold text-slate-900">{marketItemsCount}</p>
+              </div>
+            </div>
+
             <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-              <h4 className="text-xs font-bold text-slate-900 mb-3">Recent Transactions</h4>
+              <h4 className="text-xs font-bold text-slate-900 mb-3">Transaction History</h4>
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-slate-500" />
+                {approvedSubscriptions.length === 0 ? (
+                  <p className="text-center py-8 text-xs text-slate-400">No approved transactions yet.</p>
+                ) : (
+                  approvedSubscriptions.slice(0, 10).map((s) => (
+                    <div key={s.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                          {s.avatar ? <img src={s.avatar} className="w-full h-full object-cover" /> : <TrendingUp className="w-4 h-4 text-slate-500" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-900">{s.user || 'Unknown User'}</p>
+                          <p className="text-[10px] text-slate-500">{s.time || 'Recently'} • {s.plan}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-900">Subscription Payment</p>
-                        <p className="text-[10px] text-slate-500">Aug 28, 2026 • 11:20 AM</p>
-                      </div>
+                      <span className="text-xs font-bold text-emerald-600">+{s.plan?.match(/R\d+,\d+/)?.[0] || 'R0.00'}</span>
                     </div>
-                    <span className="text-xs font-bold text-emerald-600">+$29.99</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -124,6 +164,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, pending
                       >
                         Reject
                       </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case 'registered':
+      case 'subscriptions':
+        const displayUsers = activeTab === 'subscriptions' 
+          ? users.filter(u => approvedSubscriptions.some(s => s.userId === u.id))
+          : users;
+        return (
+          <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-slate-50 flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-900">
+                {activeTab === 'subscriptions' ? 'Subscribed Users' : 'Registered Users'}
+              </h4>
+              <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {displayUsers.length} total
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              {displayUsers.length === 0 ? (
+                <p className="text-center py-8 text-xs text-slate-400">No users found.</p>
+              ) : (
+                displayUsers.map((u) => (
+                  <div key={u.id} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <img src={u.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'} className="w-10 h-10 rounded-full border border-white shadow-sm" alt="User" />
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{u.name || 'Anonymous'}</p>
+                        <p className="text-[10px] text-slate-500">{u.jobTitle || 'New Member'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Joined</span>
+                      <p className="text-[10px] font-bold text-slate-900">Aug 28, 2026</p>
                     </div>
                   </div>
                 ))
